@@ -9,4 +9,4 @@
 
 <iframe width="854" height="480" src="https://www.youtube.com/embed/WOEmlc3tkTU" frameborder="0" allowfullscreen></iframe>
 
-[![](http://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=WOEmlc3tkTU)
+[![](http://img.youtube.com/vi/WOEmlc3tkTU/0.jpg)](https://www.youtube.com/watch?v=WOEmlc3tkTU)
