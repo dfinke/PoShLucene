@@ -5,7 +5,7 @@
 ## Bruce Payette
 ### Code
 
-[Bruce's code and more GitHub](https://github.com/psconfeu/2016/pull/5)
+[His code](https://github.com/psconfeu/2016/pull/5)
 
 ### Presentation
 
