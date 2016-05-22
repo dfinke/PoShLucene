@@ -5,7 +5,7 @@
 ## Bruce Payette
 ### Code
 
-[His code](https://github.com/psconfeu/2016/pull/5)
+[His code and other material](https://github.com/psconfeu/2016/tree/master/Bruce%20Payette/PowerShell%20Lucene)
 
 ### Presentation
 
