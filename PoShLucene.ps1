@@ -105,8 +105,11 @@ $XAML=@'
 					 Background="#282c34"
 					 Foreground="#4cd2ff" />
 
-			<GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" Background="#ff265c" />
-
+			<GridSplitter Grid.Column="1"
+                          Width="3"
+                          HorizontalAlignment="Stretch"
+                          Background="#ff265c" />
+           
             <TextBox Name="OutputPane"
                      Grid.Column="2"
                      Margin="5"
@@ -159,7 +162,7 @@ function DoIndex ($targetFileList)
 		$iwriter = [IndexWriter]::new($directory, $analyzer, $true, [IndexWriter+MaxFieldLength]::new(25000))
 
 		$count = 0
-		$cmd = "ls -rec {0} | % fullname " -f $targetFileList
+		$cmd = "ls -rec {0} -File | % fullname " -f $targetFileList
 		foreach ($file in ($cmd | iex))
 		{
 			try
@@ -198,7 +201,14 @@ function DoSearch ($q)
 		}
 
 		$totalHits
-		$txtStatus.text = "{0} hits found in {1} seconds" -f $totalHits.count, $timing.TotalSeconds
+		if ([String]::IsNullOrWhiteSpace($txtStatus.text)) 
+		{  
+			$txtStatus.text = "{0} hits found in {1} seconds" -f $totalHits.count, $timing.TotalSeconds
+		}
+		else
+		{
+			$txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
+		}
 	}
 	catch [Exception]
 	{
@@ -259,7 +269,7 @@ $hits.add_SelectionChanged({
 	if($adding) { return }
     $hitDoc = $isearcher.Doc($script:totalDocs[$hits.SelectedIndex].Doc)
     $OutputPane.Text = $hitDoc.Get("fulltext")
-    $txtPath.Text = $hitDoc.Get("filepath")
+    $txtPath.Content = $hitDoc.Get("filepath")
 	$hitDoc
 })
 
