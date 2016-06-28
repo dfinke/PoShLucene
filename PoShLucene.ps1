@@ -109,7 +109,7 @@ $XAML=@'
                           Width="3"
                           HorizontalAlignment="Stretch"
                           Background="#ff265c" />
-           
+
             <TextBox Name="OutputPane"
                      Grid.Column="2"
                      Margin="5"
@@ -156,8 +156,12 @@ $null=$txtTarget.Focus()
 $analyzer  = [StandardAnalyzer]::new("LUCENE_CURRENT")
 $directory = [RAMDirectory]::new()
 
+$theIndex=@{name='';indexed=$false}
+
 function DoIndex ($targetFileList)
 {
+    if($theIndex.name -eq $targetFileList -and $theIndex.index -eq $true) { return }
+
     $timing = Measure-Command {
 		$iwriter = [IndexWriter]::new($directory, $analyzer, $true, [IndexWriter+MaxFieldLength]::new(25000))
 
@@ -185,8 +189,9 @@ function DoIndex ($targetFileList)
 	}
 
 	$txtStatus.text = "{0} files indexed in {1} seconds" -f $count, $timing.TotalSeconds
-
     $iwriter.close()
+    $theIndex.name=$targetFileList
+    $theIndex.index=$true
 }
 
 function DoSearch ($q)
@@ -200,15 +205,13 @@ function DoSearch ($q)
 			$totalHits = $isearcher.Search($query, $null, 1000).ScoreDocs
 		}
 
-		$totalHits
-		if ([String]::IsNullOrWhiteSpace($txtStatus.text)) 
-		{  
-			$txtStatus.text = "{0} hits found in {1} seconds" -f $totalHits.count, $timing.TotalSeconds
-		}
-		else
-		{
-			$txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
-		}
+		 $totalHits
+		# if ([String]::IsNullOrWhiteSpace($txtStatus.text)) {
+		# 	$txtStatus.text = "{0} hits found in {1} seconds" -f $totalHits.count, $timing.TotalSeconds
+		# } else {
+		# 	$txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
+		# }
+        $txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
 	}
 	catch [Exception]
 	{
@@ -220,8 +223,7 @@ function DoSearch ($q)
 $txtTarget.add_PreviewKeyUp({
 	param($sender, $keyArgs)
 
-    if($keyArgs.Key -eq 'Enter')
-	{
+    if($keyArgs.Key -eq 'Enter') {
         [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
 		$txtStatus.text = "[{0}] Indexing..." -f (Get-Date)
         [System.Windows.Forms.Application]::DoEvents()
@@ -233,12 +235,10 @@ $txtTarget.add_PreviewKeyUp({
 $query.add_PreviewKeyUp({
     param($sender,$keyArgs)
 
-    if($keyArgs.Key -eq 'Enter')
-	{
+    if($keyArgs.Key -eq 'Enter') {
         [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
 
-		if ($txtTarget.Text -ne $null -and ([String]::IsNullOrWhiteSpace($txtTarget.Text) -ne $true))
-		{
+		if ($txtTarget.Text -ne $null -and ([String]::IsNullOrWhiteSpace($txtTarget.Text) -ne $true)) {
 			DoIndex $txtTarget.Text -ErrorAction SilentlyContinue
 		}
 
@@ -248,15 +248,14 @@ $query.add_PreviewKeyUp({
         $hits.items.Clear()
 		$OutputPane.Text = $null
 
-        for ($i = 0; $i -lt $totalDocs.count; $i++)
-		{
+        for ($i = 0; $i -lt $totalDocs.count; $i++) {
 			$hitDocPath = $isearcher.Doc($script:totalDocs[$i].Doc).Get("filepath")
             $hits.Items.Add($hitDocPath)
         }
+
 		$adding = $false
 
-        if($totalDocs.Count -ge 1)
-		{
+        if($totalDocs.Count -ge 1) {
             $hits.Focus()
             $hits.SelectedItem = $hits.Items[0]
         }
@@ -279,8 +278,8 @@ $txtPath.add_MouseEnter({
 
 $txtPath.add_MouseLeftButtonDown({
     $fPath = $txtPath.Content
-    if (Test-Path -Path $fPath)
-    {
+
+    if (Test-Path -Path $fPath) {
        Start-Process -FilePath "$env:windir\explorer.exe" -ArgumentList "/select, ""$fPath"""
     }
 })
