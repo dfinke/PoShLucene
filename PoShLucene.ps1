@@ -151,13 +151,17 @@ $txtPath    = $Window.FindName("txtPath")
 
 $txtTarget.Text = "$PSScriptRoot\*.ps1, $([System.Environment]::GetFolderPath('Desktop'))\*.cs"
 
-$null=$txtTarget.Focus()
+$null = $txtTarget.Focus()
 
 $analyzer  = [StandardAnalyzer]::new("LUCENE_CURRENT")
 $directory = [RAMDirectory]::new()
 
+$theIndex = @{name=''; indexed=$false}
+
 function DoIndex ($targetFileList)
 {
+	if ($theIndex.name -eq $targetFileList -and $theIndex.index -eq $true) { return }
+	
     $timing = Measure-Command {
 		$iwriter = [IndexWriter]::new($directory, $analyzer, $true, [IndexWriter+MaxFieldLength]::new(25000))
 
@@ -185,8 +189,9 @@ function DoIndex ($targetFileList)
 	}
 
 	$txtStatus.text = "{0} files indexed in {1} seconds" -f $count, $timing.TotalSeconds
-
     $iwriter.close()
+	$theIndex.name = $targetFileList
+	$theIndex.index = $true
 }
 
 function DoSearch ($q)
