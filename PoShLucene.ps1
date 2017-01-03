@@ -123,11 +123,14 @@ $XAML=@'
                     Grid.Column="1"
                     Grid.ColumnSpan="2"
                     Orientation="Horizontal">
-            <TextBlock Name="txtStatus"
-                       Margin="8"
-                       FontStyle="Italic"
-                       Foreground="#99ffcc"
-                       TextWrapping="Wrap" />
+            <TextBox Name="txtStatus"
+					 Margin="8"
+					 FontStyle="Italic"
+					 Background="#282c34"
+					 Foreground="#99ffcc"
+					 TextWrapping="Wrap" 
+					 HorizontalAlignment="Left"
+					 BorderThickness="0" />
 
             <Label x:Name="txtPath"
                    Margin="8"
@@ -151,7 +154,7 @@ $txtPath    = $Window.FindName("txtPath")
 
 $txtTarget.Text = "$PSScriptRoot\*.ps1, $([System.Environment]::GetFolderPath('Desktop'))\*.cs"
 
-$null=$txtTarget.Focus()
+$null = $txtTarget.Focus()
 
 $analyzer  = [StandardAnalyzer]::new("LUCENE_CURRENT")
 $directory = [RAMDirectory]::new()
@@ -161,7 +164,6 @@ $theIndex=@{name='';indexed=$false}
 function DoIndex ($targetFileList)
 {
     if($theIndex.name -eq $targetFileList -and $theIndex.index -eq $true) { return }
-
     $timing = Measure-Command {
 		$iwriter = [IndexWriter]::new($directory, $analyzer, $true, [IndexWriter+MaxFieldLength]::new(25000))
 
@@ -192,6 +194,7 @@ function DoIndex ($targetFileList)
     $iwriter.close()
     $theIndex.name=$targetFileList
     $theIndex.index=$true
+
 }
 
 function DoSearch ($q)
@@ -205,12 +208,10 @@ function DoSearch ($q)
 			$totalHits = $isearcher.Search($query, $null, 1000).ScoreDocs
 		}
 
-		 $totalHits
-		# if ([String]::IsNullOrWhiteSpace($txtStatus.text)) {
-		# 	$txtStatus.text = "{0} hits found in {1} seconds" -f $totalHits.count, $timing.TotalSeconds
-		# } else {
-		# 	$txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
-		# }
+
+		$totalHits
+		$txtStatus.text = "{0}. {1} hits found in {2} seconds" -f ($txtStatus.text -split "\. ")[0], $totalHits.count, $timing.TotalSeconds
+        $totalHits
         $txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
 	}
 	catch [Exception]
