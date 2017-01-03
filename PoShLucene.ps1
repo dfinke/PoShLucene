@@ -167,7 +167,7 @@ function DoIndex ($targetFileList)
 
 		$count = 0
 		$cmd = "ls -rec {0} -File | % fullname " -f $targetFileList
-		foreach ($file in ($cmd | iex))
+		foreach ($file in ($cmd | Invoke-Expression))
 		{
 			try
 			{
