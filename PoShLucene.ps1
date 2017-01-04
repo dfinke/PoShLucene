@@ -450,46 +450,12 @@ $Window.add_PreviewKeyUp({
 
     # Result navigation with F3
     if($keyArgs.Key -eq 'F3') {
-
-        ShowNextOccurrence [System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")
-        # $nextResultId = $script:lastSelectedResult
-        # $nextResultOccurrence = $script:lastSelectedResultOccurrence
-        # $currentResult = $script:totalDocs[$script:lastSelectedResult]
-
-        # if ($currentResult) {
-        #     if ([System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")) {
-        #         # Search backward
-        #         $nextResultOccurrence -= 1
-
-        #         if ($nextResultOccurrence -eq -1) {
-        #             $nextResultId = $script:lastSelectedResult - 1
-        #             if ($nextResultId -eq -1) {
-        #                 $nextResultId = $script:totalDocs.Count - 1
-        #             }
-
-        #             $currentResult = $script:totalDocs[$nextResultId]
-        #             $nextResultOccurrence = $currentResult.Offsets.Count - 1
-        #         }
-        #     }
-        #     else {
-        #         # Search forward
-        #         $nextResultOccurrence += 1
-        #         if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
-        #             $nextResultOccurrence = 0
-
-        #             $nextResultId = $script:lastSelectedResult + 1
-        #             if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
-        #         }
-        #     }
-        # }
-
-        # $hits.SelectedIndex = $nextResultId
-        # ShowResult $nextResultId $nextResultOccurrence
+        ShowNextOccurrence ([System.Windows.Input.Keyboard]::IsKeyDown("LeftShift"))
     }
 })
 
 $nextButton.add_Click({
-    ShowNextOccurrence
+    ShowNextOccurrence $false
 })
 
 $prevButton.add_Click({
