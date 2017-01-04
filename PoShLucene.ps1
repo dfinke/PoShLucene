@@ -94,25 +94,44 @@ $XAML=@'
         </Grid>
 
         <Grid Grid.Row="1" Margin="5">
+            <Grid.RowDefinitions>
+				<RowDefinition Height="100" />
+                <RowDefinition Height="5" />
+				<RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-				<ColumnDefinition Width="200" />
-                <ColumnDefinition Width="5" />
 				<ColumnDefinition Width="*" />
+				<ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
 
             <ListBox Name="hits"
+                     Grid.Row="0"
                      Grid.Column="0"
                      Margin="5"
 					 Background="#282c34"
 					 Foreground="#4cd2ff" />
 
-			<GridSplitter Grid.Column="1"
-                          Width="3"
+            <StackPanel Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="5">
+                <Button Name="prevButton"
+                        Content="_Previous Occurrence"
+                        Margin="0,0,0,5" />
+                <Button Name="nextButton"
+                        Content="_Next Occurrence" />
+            </StackPanel>
+
+			<GridSplitter Grid.Row="1"
+                          Grid.ColumnSpan="2"
+                          Height="3"
+                          Margin="5,0,5,0"
+                          ResizeDirection="Rows"
                           HorizontalAlignment="Stretch"
                           Background="#ff265c" />
 
             <RichTextBox Name="OutputPane"
-                     Grid.Column="2"
+                     Grid.Row="2"
+                     Grid.ColumnSpan="2"
                      Margin="5"
                      Background="#282c34"
                      Foreground="#ccff99"
@@ -155,6 +174,8 @@ $hits       = $Window.FindName("hits")
 $OutputPane = $Window.FindName("OutputPane")
 $txtStatus  = $Window.FindName("txtStatus")
 $txtPath    = $Window.FindName("txtPath")
+$nextButton = $Window.FindName("nextButton")
+$prevButton = $Window.FindName("prevButton")
 
 $txtTarget.Text = "$PSScriptRoot\*.ps1, $([System.Environment]::GetFolderPath('Desktop'))\*.cs"
 
@@ -256,9 +277,7 @@ function ShowResult ([int]$resultId, [int]$occurrenceId = 0) {
         $occurrence = $resultInfo.OccurrencePositions[$occurrenceId]
         if ($occurrence) {
             SetBackgroundColor $occurrence $highlightSelectionColor
-
-            # Invoke scrolling with selection
-            $OutputPane.Selection.Select($occurrence.EndPosition, $occurrence.EndPosition)
+            $occurrence.StartPosition.Parent.BringIntoView()
         }
 
         $script:lastSelectedResult = $resultId
@@ -387,46 +406,94 @@ $query.add_PreviewKeyUp({
     }
 })
 
+function ShowNextOccurrence([bool]$moveBackward = $false) {
+
+    if ($script:totalDocs -eq $null -or $script:totalDocs.Count -eq 0) { return }
+
+    $nextResultId = $script:lastSelectedResult
+    $nextResultOccurrence = $script:lastSelectedResultOccurrence
+    $currentResult = $script:totalDocs[$script:lastSelectedResult]
+
+    if ($currentResult) {
+        if ($moveBackward) {
+            # Search backward
+            $nextResultOccurrence -= 1
+
+            if ($nextResultOccurrence -eq -1) {
+                $nextResultId = $script:lastSelectedResult - 1
+                if ($nextResultId -eq -1) {
+                    $nextResultId = $script:totalDocs.Count - 1
+                }
+
+                $currentResult = $script:totalDocs[$nextResultId]
+                $nextResultOccurrence = $currentResult.Offsets.Count - 1
+            }
+        }
+        else {
+            # Search forward
+            $nextResultOccurrence += 1
+            if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
+                $nextResultOccurrence = 0
+
+                $nextResultId = $script:lastSelectedResult + 1
+                if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
+            }
+        }
+    }
+
+    $hits.SelectedIndex = $nextResultId
+    ShowResult $nextResultId $nextResultOccurrence
+}
+
 $Window.add_PreviewKeyUp({
     param($sender, $keyArgs)
 
     # Result navigation with F3
     if($keyArgs.Key -eq 'F3') {
 
-        $nextResultId = $script:lastSelectedResult
-        $nextResultOccurrence = $script:lastSelectedResultOccurrence
-        $currentResult = $script:totalDocs[$script:lastSelectedResult]
+        ShowNextOccurrence [System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")
+        # $nextResultId = $script:lastSelectedResult
+        # $nextResultOccurrence = $script:lastSelectedResultOccurrence
+        # $currentResult = $script:totalDocs[$script:lastSelectedResult]
 
-        if ($currentResult) {
-            if ([System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")) {
-                # Search backward
-                $nextResultOccurrence -= 1
+        # if ($currentResult) {
+        #     if ([System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")) {
+        #         # Search backward
+        #         $nextResultOccurrence -= 1
 
-                if ($nextResultOccurrence -eq -1) {
-                    $nextResultId = $script:lastSelectedResult - 1
-                    if ($nextResultId -eq -1) {
-                        $nextResultId = $script:totalDocs.Count - 1
-                    }
+        #         if ($nextResultOccurrence -eq -1) {
+        #             $nextResultId = $script:lastSelectedResult - 1
+        #             if ($nextResultId -eq -1) {
+        #                 $nextResultId = $script:totalDocs.Count - 1
+        #             }
 
-                    $currentResult = $script:totalDocs[$nextResultId]
-                    $nextResultOccurrence = $currentResult.Offsets.Count - 1
-                }
-            }
-            else {
-                # Search forward
-                $nextResultOccurrence += 1
-                if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
-                    $nextResultOccurrence = 0
+        #             $currentResult = $script:totalDocs[$nextResultId]
+        #             $nextResultOccurrence = $currentResult.Offsets.Count - 1
+        #         }
+        #     }
+        #     else {
+        #         # Search forward
+        #         $nextResultOccurrence += 1
+        #         if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
+        #             $nextResultOccurrence = 0
 
-                    $nextResultId = $script:lastSelectedResult + 1
-                    if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
-                }
-            }
-        }
+        #             $nextResultId = $script:lastSelectedResult + 1
+        #             if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
+        #         }
+        #     }
+        # }
 
-        $hits.SelectedIndex = $nextResultId
-        ShowResult $nextResultId $nextResultOccurrence
+        # $hits.SelectedIndex = $nextResultId
+        # ShowResult $nextResultId $nextResultOccurrence
     }
+})
+
+$nextButton.add_Click({
+    ShowNextOccurrence
+})
+
+$prevButton.add_Click({
+    ShowNextOccurrence $true
 })
 
 $hits.add_SelectionChanged({
