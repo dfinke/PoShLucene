@@ -9,6 +9,7 @@ using namespace Lucene.Net.QueryParsers
 using namespace Lucene.Net.Store
 using namespace Lucene.Net.Util
 using namespace Lucene.Net.Search
+using namespace System.Windows.Documents
 
 Add-Type -AssemblyName presentationframework
 Add-Type -AssemblyName System.Windows.Forms
@@ -93,28 +94,50 @@ $XAML=@'
         </Grid>
 
         <Grid Grid.Row="1" Margin="5">
+            <Grid.RowDefinitions>
+				<RowDefinition Height="100" />
+                <RowDefinition Height="5" />
+				<RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-				<ColumnDefinition Width="200" />
-                <ColumnDefinition Width="5" />
 				<ColumnDefinition Width="*" />
+				<ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
 
             <ListBox Name="hits"
+                     Grid.Row="0"
                      Grid.Column="0"
                      Margin="5"
 					 Background="#282c34"
 					 Foreground="#4cd2ff" />
 
-			<GridSplitter Grid.Column="1"
-                          Width="3"
+            <StackPanel Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="5">
+                <Button Name="prevButton"
+                        Content="_Previous Occurrence"
+                        Margin="0,0,0,5" />
+                <Button Name="nextButton"
+                        Content="_Next Occurrence" />
+            </StackPanel>
+
+			<GridSplitter Grid.Row="1"
+                          Grid.ColumnSpan="2"
+                          Height="3"
+                          Margin="5,0,5,0"
+                          ResizeDirection="Rows"
                           HorizontalAlignment="Stretch"
                           Background="#ff265c" />
 
-            <TextBox Name="OutputPane"
-                     Grid.Column="2"
+            <RichTextBox Name="OutputPane"
+                     Grid.Row="2"
+                     Grid.ColumnSpan="2"
                      Margin="5"
                      Background="#282c34"
                      Foreground="#ccff99"
+                     IsReadOnly="True"
+                     FontFamily="Consolas"
+                     FontSize="14"
                      HorizontalScrollBarVisibility="Auto"
                      VerticalScrollBarVisibility="Auto" />
         </Grid>
@@ -151,6 +174,8 @@ $hits       = $Window.FindName("hits")
 $OutputPane = $Window.FindName("OutputPane")
 $txtStatus  = $Window.FindName("txtStatus")
 $txtPath    = $Window.FindName("txtPath")
+$nextButton = $Window.FindName("nextButton")
+$prevButton = $Window.FindName("prevButton")
 
 $txtTarget.Text = "$PSScriptRoot\*.ps1, $([System.Environment]::GetFolderPath('Desktop'))\*.cs"
 
@@ -160,6 +185,123 @@ $analyzer  = [StandardAnalyzer]::new("LUCENE_CURRENT")
 $directory = [RAMDirectory]::new()
 
 $theIndex=@{name='';indexed=$false}
+
+$highlightMatchColor = "YellowGreen"
+$highlightSelectionColor = "Orange"
+
+$lastSelectedResult = -1
+$lastSelectedResultOccurrence = -1
+
+function FindTextPosition([TextPointer]$startPos, [int]$offset) {
+    $i = 0
+    $currentPos = $startPos
+    
+    while ($i -lt $offset -and $currentPos) {
+        if ($currentPos.GetPointerContext([LogicalDirection]::Forward) -eq [TextPointerContext]::Text) {
+            $i = $i + 1
+        }
+        if (!$currentPos.GetPositionAtOffset(1, [LogicalDirection]::Forward)) {
+            return $currentPos
+        }
+
+        $currentPos = $currentPos.GetPositionAtOffset([LogicalDirection]::Forward)
+    }
+
+    return $currentPos
+}
+
+function SetBackgroundColor($occurrence, $backgroundColor) {
+    $documentStartPos = $OutputPane.Document.ContentStart
+    $selection = $OutputPane.Selection
+    $selection.Select($occurrence.StartPosition, $occurrence.EndPosition)
+    $selection.ApplyPropertyValue([System.Windows.Documents.TextElement]::BackgroundProperty, $backgroundColor);
+    $selection.Select($documentStartPos, $documentStartPos)
+}
+
+function GetFlowDocument ($resultFile) {
+
+    if (!$resultFile.FlowDocument) {
+
+        $run = New-Object System.Windows.Documents.Run $resultFile.Content
+        $paragraph = New-Object System.Windows.Documents.Paragraph $run
+        $OutputPane.Document = New-Object System.Windows.Documents.FlowDocument $paragraph
+
+        [void]$OutputPane.Focus()
+
+        $documentStartPos = $OutputPane.Document.ContentStart
+
+        $lastPos = $documentStartPos
+        $lastOffset = 0
+
+        $positions = @()
+        $resultFile.Offsets | ForEach-Object {
+            $startPos = FindTextPosition $lastPos ($_.StartOffset - $lastOffset)
+            $endPos = FindTextPosition $startPos ($_.EndOffset - $_.StartOffset)
+            $occurrence = @{ StartPosition = $startPos; EndPosition = $endPos }
+            SetBackgroundColor $occurrence $highlightMatchColor
+
+            $positions += $occurrence
+            $lastPos = $endPos
+            $lastOffset = $_.EndOffset
+        } | Out-Null
+
+        $resultFile.FlowDocument = $OutputPane.Document
+        $resultFile.OccurrencePositions = $positions
+    }
+
+    return $resultFile.FlowDocument
+}
+
+function ClearSelectedOccurrence() {
+    if ($script:lastSelectedResult -gt -1 -and $script:lastSelectedResultOccurrence -gt -1) {
+        $lastResult = $script:totalDocs[$script:lastSelectedResult]
+        if ($lastResult -and $lastResult.OccurrencePositions) {
+            $lastOccurrence = $lastResult.OccurrencePositions[$script:lastSelectedResultOccurrence]
+            if ($lastOccurrence) {
+                SetBackgroundColor $lastOccurrence $highlightMatchColor
+            }
+        }
+    }
+}
+
+function ShowResult ([int]$resultId, [int]$occurrenceId = 0) {
+    $resultInfo = $script:totalDocs[$resultId]
+
+    if ($resultInfo) {
+
+        ClearSelectedOccurrence
+
+        $OutputPane.Document = GetFlowDocument $resultInfo
+        $txtPath.Content = $resultInfo.Path
+
+        $occurrence = $resultInfo.OccurrencePositions[$occurrenceId]
+        if ($occurrence) {
+            SetBackgroundColor $occurrence $highlightSelectionColor
+            $occurrence.StartPosition.Parent.BringIntoView()
+        }
+
+        $script:lastSelectedResult = $resultId
+        $script:lastSelectedResultOccurrence = $occurrenceId
+    }
+}
+
+function BuildResult ([ScoreDoc]$scoredDocument, [string]$queryStr) {
+    $document = $isearcher.Doc($scoredDocument.Doc) 
+
+    $indexReader = [IndexReader]::Open($directory, $true)
+    $termPosVector = $indexReader.GetTermFreqVector($scoredDocument.Doc, "fulltext")
+    $termIndex = $termPosVector.IndexOf($queryStr.ToLower())
+    $indexReader.Dispose()
+
+    @{
+        Path = $document.Get("filepath")
+        Content = $document.Get("fulltext")
+        Document = $document
+        Offsets = $termPosVector.GetOffsets($termIndex)
+        FlowDocument = $null           # This will be populated on first display
+        OccurrencePositions = $null    # This will be populated on first display
+    }
+}
 
 function DoIndex ($targetFileList)
 {
@@ -177,7 +319,7 @@ function DoIndex ($targetFileList)
 				$text = [IO.file]::ReadAllText($file)
 
 				Write-Verbose -Message "Analyzed the file: $file"
-				$doc.Add([Field]::new("fulltext", $text, "YES", "ANALYZED"))
+                $doc.Add([Field]::new("fulltext", [string]$text, "YES", "ANALYZED", "WITH_POSITIONS_OFFSETS"))
 				$doc.Add([Field]::new("filepath", $file, "YES", "ANALYZED"))
 				$iwriter.AddDocument($doc)
 				$count++
@@ -208,10 +350,7 @@ function DoSearch ($q)
 			$totalHits = $isearcher.Search($query, $null, 1000).ScoreDocs
 		}
 
-
-		$totalHits
-		$txtStatus.text = "{0}. {1} hits found in {2} seconds" -f ($txtStatus.text -split "\. ")[0], $totalHits.count, $timing.TotalSeconds
-        $totalHits
+        $totalHits | ForEach-Object { BuildResult $_ $q }
         $txtStatus.text = "{0}`n{1} hits found in {2} seconds" -f $txtStatus.text, $totalHits.count, $timing.TotalSeconds
 	}
 	catch [Exception]
@@ -237,6 +376,8 @@ $query.add_PreviewKeyUp({
     param($sender,$keyArgs)
 
     if($keyArgs.Key -eq 'Enter') {
+        if (!$query.Text) { return }
+
         [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
 
 		if ($txtTarget.Text -ne $null -and ([String]::IsNullOrWhiteSpace($txtTarget.Text) -ne $true)) {
@@ -244,14 +385,14 @@ $query.add_PreviewKeyUp({
 		}
 
         $adding=$true
-		$script:totalDocs = DoSearch $query.Text -ErrorAction SilentlyContinue
+        $script:totalDocs = @(DoSearch $query.Text -ErrorAction SilentlyContinue)
 
         $hits.items.Clear()
-		$OutputPane.Text = $null
+        $OutputPane.Document = New-Object System.Windows.Documents.FlowDocument
+        $txtPath.Content = ""
 
         for ($i = 0; $i -lt $totalDocs.count; $i++) {
-			$hitDocPath = $isearcher.Doc($script:totalDocs[$i].Doc).Get("filepath")
-            $hits.Items.Add($hitDocPath)
+            $hits.Items.Add($script:totalDocs[$i].Path)
         }
 
 		$adding = $false
@@ -265,11 +406,99 @@ $query.add_PreviewKeyUp({
     }
 })
 
+function ShowNextOccurrence([bool]$moveBackward = $false) {
+
+    if ($script:totalDocs -eq $null -or $script:totalDocs.Count -eq 0) { return }
+
+    $nextResultId = $script:lastSelectedResult
+    $nextResultOccurrence = $script:lastSelectedResultOccurrence
+    $currentResult = $script:totalDocs[$script:lastSelectedResult]
+
+    if ($currentResult) {
+        if ($moveBackward) {
+            # Search backward
+            $nextResultOccurrence -= 1
+
+            if ($nextResultOccurrence -eq -1) {
+                $nextResultId = $script:lastSelectedResult - 1
+                if ($nextResultId -eq -1) {
+                    $nextResultId = $script:totalDocs.Count - 1
+                }
+
+                $currentResult = $script:totalDocs[$nextResultId]
+                $nextResultOccurrence = $currentResult.Offsets.Count - 1
+            }
+        }
+        else {
+            # Search forward
+            $nextResultOccurrence += 1
+            if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
+                $nextResultOccurrence = 0
+
+                $nextResultId = $script:lastSelectedResult + 1
+                if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
+            }
+        }
+    }
+
+    $hits.SelectedIndex = $nextResultId
+    ShowResult $nextResultId $nextResultOccurrence
+}
+
+$Window.add_PreviewKeyUp({
+    param($sender, $keyArgs)
+
+    # Result navigation with F3
+    if($keyArgs.Key -eq 'F3') {
+
+        ShowNextOccurrence [System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")
+        # $nextResultId = $script:lastSelectedResult
+        # $nextResultOccurrence = $script:lastSelectedResultOccurrence
+        # $currentResult = $script:totalDocs[$script:lastSelectedResult]
+
+        # if ($currentResult) {
+        #     if ([System.Windows.Input.Keyboard]::IsKeyDown("LeftShift")) {
+        #         # Search backward
+        #         $nextResultOccurrence -= 1
+
+        #         if ($nextResultOccurrence -eq -1) {
+        #             $nextResultId = $script:lastSelectedResult - 1
+        #             if ($nextResultId -eq -1) {
+        #                 $nextResultId = $script:totalDocs.Count - 1
+        #             }
+
+        #             $currentResult = $script:totalDocs[$nextResultId]
+        #             $nextResultOccurrence = $currentResult.Offsets.Count - 1
+        #         }
+        #     }
+        #     else {
+        #         # Search forward
+        #         $nextResultOccurrence += 1
+        #         if ($nextResultOccurrence -eq $currentResult.Offsets.Count) {
+        #             $nextResultOccurrence = 0
+
+        #             $nextResultId = $script:lastSelectedResult + 1
+        #             if ($nextResultId -eq $script:totalDocs.Count) { $nextResultId = 0 }
+        #         }
+        #     }
+        # }
+
+        # $hits.SelectedIndex = $nextResultId
+        # ShowResult $nextResultId $nextResultOccurrence
+    }
+})
+
+$nextButton.add_Click({
+    ShowNextOccurrence
+})
+
+$prevButton.add_Click({
+    ShowNextOccurrence $true
+})
+
 $hits.add_SelectionChanged({
 	if($adding) { return }
-    $hitDoc = $isearcher.Doc($script:totalDocs[$hits.SelectedIndex].Doc)
-    $OutputPane.Text = $hitDoc.Get("fulltext")
-    $txtPath.Content = $hitDoc.Get("filepath")
+    ShowResult $hits.SelectedIndex
 	$hitDoc
 })
 
