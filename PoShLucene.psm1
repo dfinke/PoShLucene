@@ -14,7 +14,7 @@ using namespace System.Windows.Documents
 Add-Type -AssemblyName presentationframework
 Add-Type -AssemblyName System.Windows.Forms
 
-function Invoke-LuceneSearch {
+function Invoke-PoshLucene {
 
 $XAML=@'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
