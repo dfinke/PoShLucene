@@ -1,6 +1,6 @@
 ## In Action
 
-![](https://raw.githubusercontent.com/dfinke/PoShLucene/master/media/improved.gif)
+![poshlucene](https://cloud.githubusercontent.com/assets/79405/21662785/c14e516c-d290-11e6-9e09-d7fb7b16f14e.gif)
 
 ## Bruce Payette
 ### Code
