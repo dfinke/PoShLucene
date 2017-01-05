@@ -443,6 +443,7 @@ function ShowNextOccurrence([bool]$moveBackward = $false) {
 
     $hits.SelectedIndex = $nextResultId
     ShowResult $nextResultId $nextResultOccurrence
+    $hits.ScrollIntoView($hits.SelectedItem)
 }
 
 $Window.add_PreviewKeyUp({
