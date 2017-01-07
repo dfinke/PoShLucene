@@ -1,3 +1,4 @@
+
 using assembly Lucene.Net.dll
 
 using namespace System.IO
@@ -11,6 +12,7 @@ using namespace Lucene.Net.Util
 using namespace Lucene.Net.Search
 using namespace System.Windows.Documents
 
+Add-Type -Path $PSScriptRoot\ICSharpCode.AvalonEdit.dll
 Add-Type -AssemblyName presentationframework
 Add-Type -AssemblyName System.Windows.Forms
 
@@ -19,6 +21,7 @@ function Invoke-PoshLucene {
 $XAML=@'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         Title="PoShLucene"
         Width="850"
         Height="500"
@@ -131,7 +134,12 @@ $XAML=@'
                           HorizontalAlignment="Stretch"
                           Background="#ff265c" />
 
-            <RichTextBox Name="OutputPane"
+            <avalonEdit:TextEditor x:Name="OutputPane"
+                Grid.Row="2"
+                Grid.ColumnSpan="2"
+                Margin="5" />
+
+            <!--<RichTextBox Name="OutputPane"
                      Grid.Row="2"
                      Grid.ColumnSpan="2"
                      Margin="5"
@@ -141,7 +149,7 @@ $XAML=@'
                      FontFamily="Consolas"
                      FontSize="14"
                      HorizontalScrollBarVisibility="Auto"
-                     VerticalScrollBarVisibility="Auto" />
+                     VerticalScrollBarVisibility="Auto" />-->
         </Grid>
 
         <StackPanel Grid.Row="2"
