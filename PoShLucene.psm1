@@ -187,6 +187,10 @@ $XAML=@'
     $nextButton = $Window.FindName("nextButton")
     $prevButton = $Window.FindName("prevButton")
 
+    $OutputPane.SyntaxHighlighting="PowerShell"
+    $OutputPane.IsReadOnly=$true
+    $OutputPane.ShowLineNumbers=$true
+
     $null = $txtTarget.Focus()
 
     $analyzer  = [StandardAnalyzer]::new("LUCENE_CURRENT")
@@ -219,11 +223,11 @@ $XAML=@'
     }
 
     function SetBackgroundColor($occurrence, $backgroundColor) {
-        $documentStartPos = $OutputPane.Document.ContentStart
-        $selection = $OutputPane.Selection
-        $selection.Select($occurrence.StartPosition, $occurrence.EndPosition)
-        $selection.ApplyPropertyValue([System.Windows.Documents.TextElement]::BackgroundProperty, $backgroundColor);
-        $selection.Select($documentStartPos, $documentStartPos)
+        # $documentStartPos = $OutputPane.Document.ContentStart
+        # $selection = $OutputPane.Selection
+        # $selection.Select($occurrence.StartPosition, $occurrence.EndPosition)
+        # $selection.ApplyPropertyValue([System.Windows.Documents.TextElement]::BackgroundProperty, $backgroundColor);
+        # $selection.Select($documentStartPos, $documentStartPos)
     }
 
     function GetFlowDocument ($resultFile) {
@@ -277,16 +281,20 @@ $XAML=@'
 
         if ($resultInfo) {
 
-            ClearSelectedOccurrence
+            $OutputPane.Text = $resultInfo.Content
+            #$resultInfo.Offsets[0].EndOffset
+            #$resultInfo.Offsets[0].StartOffset   
+            $OutputPane.ScrollToHorizontalOffset($resultInfo.Offsets[0].StartOffset)
+            #ClearSelectedOccurrence
 
-            $OutputPane.Document = GetFlowDocument $resultInfo
-            $txtPath.Content = $resultInfo.Path
+            #$OutputPane.Document = GetFlowDocument $resultInfo
+            #$txtPath.Content = $resultInfo.Path
 
-            $occurrence = $resultInfo.OccurrencePositions[$occurrenceId]
-            if ($occurrence) {
-                SetBackgroundColor $occurrence $highlightSelectionColor
-                $occurrence.StartPosition.Parent.BringIntoView()
-            }
+            # $occurrence = $resultInfo.OccurrencePositions[$occurrenceId]
+            # if ($occurrence) {
+            #     SetBackgroundColor $occurrence $highlightSelectionColor
+            #     $occurrence.StartPosition.Parent.BringIntoView()
+            # }
 
             $script:lastSelectedResult = $resultId
             $script:lastSelectedResultOccurrence = $occurrenceId
@@ -396,7 +404,7 @@ $XAML=@'
             $script:totalDocs = @(DoSearch $query.Text -ErrorAction SilentlyContinue)
 
             $hits.items.Clear()
-            $OutputPane.Document = New-Object System.Windows.Documents.FlowDocument
+            #$OutputPane.Document = New-Object System.Windows.Documents.FlowDocument
             $txtPath.Content = ""
 
             for ($i = 0; $i -lt $totalDocs.count; $i++) {
